@@ -34,7 +34,7 @@ struct MirrorEntry
     struct
     {
         IpPrefix prefix;
-        IpAddress nexthop;
+        NextHopKey nexthop;
     } nexthopInfo;
 
     struct
