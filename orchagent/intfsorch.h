@@ -32,6 +32,7 @@ public:
     IntfsOrch(DBConnector *db, string tableName, VRFOrch *vrf_orch);
 
     sai_object_id_t getRouterIntfsId(const string&);
+    string getRouterIntfsAlias(const IpAddress &ip);
 
     void increaseRouterIntfsRefCount(const string&);
     void decreaseRouterIntfsRefCount(const string&);

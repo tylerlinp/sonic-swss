@@ -9,34 +9,155 @@
 #include "ipaddress.h"
 #include "ipaddresses.h"
 #include "ipprefix.h"
+#include "tokenize.h"
 
 #include <map>
 
 /* Maximum next hop group number */
 #define NHGRP_MAX_SIZE 128
 
-typedef std::map<IpAddress, sai_object_id_t> NextHopGroupMembers;
+class NextHopGroupKey
+{
+public:
+    NextHopGroupKey() = default;
+
+    /* ip_string|if_alias separated by ',' */
+    NextHopGroupKey(const std::string &nexthops)
+    {
+        auto nhv = tokenize(nexthops, ',');
+        for (const auto &nh : nhv)
+        {
+            m_nexthops.insert(nh);
+        }
+    }
+
+    inline const std::set<NextHopKey> &getNextHops() const
+    {
+        return m_nexthops;
+    }
+
+    inline size_t getSize() const
+    {
+        return m_nexthops.size();
+    }
+
+    inline bool operator<(const NextHopGroupKey &o) const
+    {
+        return m_nexthops < o.m_nexthops;
+    }
+
+    inline bool operator==(const NextHopGroupKey &o) const
+    {
+        return m_nexthops == o.m_nexthops;
+    }
+
+    inline bool operator!=(const NextHopGroupKey &o) const
+    {
+        return !(*this == o);
+    }
+
+    void add(const std::string &ip, const std::string &alias)
+    {
+        m_nexthops.emplace(ip, alias);
+    }
+
+    void add(const std::string &nh)
+    {
+        m_nexthops.insert(nh);
+    }
+
+    void add(const NextHopKey &nh)
+    {
+        m_nexthops.insert(nh);
+    }
+
+    bool contains(const std::string &ip, const std::string &alias) const
+    {
+        NextHopKey nh(ip, alias);
+        return m_nexthops.find(nh) != m_nexthops.end();
+    }
+
+    bool contains(const std::string &nh) const
+    {
+        return m_nexthops.find(nh) != m_nexthops.end();
+    }
+
+    bool contains(const NextHopKey &nh) const
+    {
+        return m_nexthops.find(nh) != m_nexthops.end();
+    }
+
+    bool contains(const NextHopGroupKey &nhs) const
+    {
+        for (const auto &nh : nhs.getNextHops())
+        {
+            if (!contains(nh))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void remove(const std::string &ip, const std::string &alias)
+    {
+        NextHopKey nh(ip, alias);
+        m_nexthops.erase(nh);
+    }
+
+    void remove(const std::string &nh)
+    {
+        m_nexthops.erase(nh);
+    }
+
+    void remove(const NextHopKey &nh)
+    {
+        m_nexthops.erase(nh);
+    }
+
+    const std::string to_string() const
+    {
+        string nhs_str;
+
+        for (auto it = m_nexthops.begin(); it != m_nexthops.end(); ++it)
+        {
+            if (it != m_nexthops.begin())
+            {
+                nhs_str += ",";
+            }
+
+            nhs_str += it->to_string();
+        }
+
+        return nhs_str;
+    }
+
+private:
+    std::set<NextHopKey> m_nexthops;
+};
+
+typedef std::map<NextHopKey, sai_object_id_t> NextHopGroupMembers;
 
 struct NextHopGroupEntry
 {
     sai_object_id_t         next_hop_group_id;      // next hop group id
     int                     ref_count;              // reference count
-    NextHopGroupMembers     nhopgroup_members;      // ids of members indexed by ip address
+    NextHopGroupMembers     nhopgroup_members;      // ids of members indexed by <ip_address, if_alias>
 };
 
 struct NextHopUpdate
 {
     IpAddress destination;
     IpPrefix prefix;
-    IpAddresses nexthopGroup;
+    NextHopGroupKey nexthopGroup;
 };
 
 struct NextHopObserverEntry;
 
-/* NextHopGroupTable: next hop group IP addersses, NextHopGroupEntry */
-typedef std::map<IpAddresses, NextHopGroupEntry> NextHopGroupTable;
-/* RouteTable: destination network, next hop IP address(es) */
-typedef std::map<IpPrefix, IpAddresses> RouteTable;
+/* NextHopGroupTable: NextHopGroupKey, NextHopGroupEntry */
+typedef std::map<NextHopGroupKey, NextHopGroupEntry> NextHopGroupTable;
+/* RouteTable: destination network, NextHopGroupKey */
+typedef std::map<IpPrefix, NextHopGroupKey> RouteTable;
 /* NextHopObserverTable: Destination IP address, next hop observer entry */
 typedef std::map<IpAddress, NextHopObserverEntry> NextHopObserverTable;
 
@@ -51,23 +172,23 @@ class RouteOrch : public Orch, public Subject
 public:
     RouteOrch(DBConnector *db, string tableName, NeighOrch *neighOrch);
 
-    bool hasNextHopGroup(const IpAddresses&) const;
-    sai_object_id_t getNextHopGroupId(const IpAddresses&);
+    bool hasNextHopGroup(const NextHopGroupKey&) const;
+    sai_object_id_t getNextHopGroupId(const NextHopGroupKey&);
 
     void attach(Observer *, const IpAddress&);
     void detach(Observer *, const IpAddress&);
 
-    void increaseNextHopRefCount(IpAddresses);
-    void decreaseNextHopRefCount(IpAddresses);
-    bool isRefCounterZero(const IpAddresses&) const;
+    void increaseNextHopRefCount(const NextHopGroupKey&);
+    void decreaseNextHopRefCount(const NextHopGroupKey&);
+    bool isRefCounterZero(const NextHopGroupKey&) const;
 
-    bool addNextHopGroup(IpAddresses);
-    bool removeNextHopGroup(IpAddresses);
+    bool addNextHopGroup(const NextHopGroupKey&);
+    bool removeNextHopGroup(const NextHopGroupKey&);
 
-    bool validnexthopinNextHopGroup(const IpAddress &);
-    bool invalidnexthopinNextHopGroup(const IpAddress &);
+    bool validnexthopinNextHopGroup(const NextHopKey&);
+    bool invalidnexthopinNextHopGroup(const NextHopKey&);
 
-    void notifyNextHopChangeObservers(IpPrefix, IpAddresses, bool);
+    void notifyNextHopChangeObservers(const IpPrefix&, const NextHopGroupKey&, bool);
 private:
     NeighOrch *m_neighOrch;
 
@@ -80,9 +201,9 @@ private:
 
     NextHopObserverTable m_nextHopObservers;
 
-    void addTempRoute(IpPrefix, IpAddresses);
-    bool addRoute(IpPrefix, IpAddresses);
-    bool removeRoute(IpPrefix);
+    void addTempRoute(const IpPrefix&, const NextHopGroupKey&);
+    bool addRoute(const IpPrefix&, const NextHopGroupKey&);
+    bool removeRoute(const IpPrefix&);
 
     void doTask(Consumer& consumer);
 };

@@ -78,8 +78,20 @@ sai_object_id_t IntfsOrch::getRouterIntfsId(const string &alias)
 {
     Port port;
     gPortsOrch->getPort(alias, port);
-    assert(port.m_rif_id);
     return port.m_rif_id;
+}
+
+string IntfsOrch::getRouterIntfsAlias(const IpAddress &ip)
+{
+    for (const auto &it_intfs: m_syncdIntfses)
+    {
+        for (const auto &prefixIt: it_intfs.second.ip_addresses)
+        {
+            if (prefixIt.isAddressInSubnet(ip))
+                return it_intfs.first;
+        }
+    }
+    return string();
 }
 
 void IntfsOrch::increaseRouterIntfsRefCount(const string &alias)
@@ -628,7 +640,7 @@ void IntfsOrch::addSubnetRoute(const Port &port, const IpPrefix &ip_prefix)
         gCrmOrch->incCrmResUsedCounter(CrmResourceType::CRM_IPV6_ROUTE);
     }
 
-    gRouteOrch->notifyNextHopChangeObservers(ip_prefix, IpAddresses(), true);
+    gRouteOrch->notifyNextHopChangeObservers(ip_prefix, NextHopGroupKey(), true);
 }
 
 void IntfsOrch::removeSubnetRoute(const Port &port, const IpPrefix &ip_prefix)
@@ -660,7 +672,7 @@ void IntfsOrch::removeSubnetRoute(const Port &port, const IpPrefix &ip_prefix)
         gCrmOrch->decCrmResUsedCounter(CrmResourceType::CRM_IPV6_ROUTE);
     }
 
-    gRouteOrch->notifyNextHopChangeObservers(ip_prefix, IpAddresses(), false);
+    gRouteOrch->notifyNextHopChangeObservers(ip_prefix, NextHopGroupKey(), false);
 }
 
 void IntfsOrch::addIp2MeRoute(sai_object_id_t vrf_id, const IpPrefix &ip_prefix)
