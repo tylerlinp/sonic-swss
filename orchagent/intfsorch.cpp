@@ -81,14 +81,27 @@ sai_object_id_t IntfsOrch::getRouterIntfsId(const string &alias)
     return port.m_rif_id;
 }
 
-string IntfsOrch::getRouterIntfsAlias(const IpAddress &ip)
+string IntfsOrch::getRouterIntfsAlias(const IpAddress &ip, const string &vrf_name)
 {
+    sai_object_id_t vrf_id = gVirtualRouterId;
+
+    if (!vrf_name.empty())
+    {
+        vrf_id = m_vrfOrch->getVRFid(vrf_name);
+    }
+
     for (const auto &it_intfs: m_syncdIntfses)
     {
+        if (it_intfs.second.vrf_id != vrf_id)
+        {
+            continue;
+        }
         for (const auto &prefixIt: it_intfs.second.ip_addresses)
         {
             if (prefixIt.isAddressInSubnet(ip))
+            {
                 return it_intfs.first;
+            }
         }
     }
     return string();
@@ -165,6 +178,7 @@ bool IntfsOrch::setIntf(const string& alias, sai_object_id_t vrf_id, const IpPre
             gPortsOrch->increasePortRefCount(alias);
             IntfsEntry intfs_entry;
             intfs_entry.ref_count = 0;
+            intfs_entry.vrf_id = vrf_id;
             m_syncdIntfses[alias] = intfs_entry;
         }
         else
@@ -339,6 +353,7 @@ void IntfsOrch::doTask(Consumer &consumer)
                     IntfsEntry intfs_entry;
 
                     intfs_entry.ref_count = 0;
+                    intfs_entry.vrf_id = vrf_id;
                     intfs_entry.ip_addresses.insert(ip_prefix);
                     m_syncdIntfses[alias] = intfs_entry;
                     addIp2Me = true;
