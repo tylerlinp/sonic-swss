@@ -1159,7 +1159,7 @@ bool VNetBitmapObject::addRoute(IpPrefix& ipPrefix, nextHop& nh)
     Port port;
     RouteInfo routeInfo;
 
-    bool is_subnet = (!nh.ips.getSize()) ? true : false;
+    bool is_subnet = (!nh.ips.getSize() || nh.ips.contains("0.0.0.0")) ? true : false;
 
     if (is_subnet && (!gPortsOrch->getPort(nh.ifname, port) || (port.m_rif_id == SAI_NULL_OBJECT_ID)))
     {
@@ -1710,7 +1710,7 @@ bool VNetRouteOrch::doRouteTask<VNetVrfObject>(const string& vnet, IpPrefix& ipP
         return true;
     }
 
-    bool is_subnet = (!nh.ips.getSize())?true:false;
+    bool is_subnet = (!nh.ips.getSize() || nh.ips.contains("0.0.0.0")) ? true : false;
 
     Port port;
     if (is_subnet && (!gPortsOrch->getPort(nh.ifname, port) || (port.m_rif_id == SAI_NULL_OBJECT_ID)))
