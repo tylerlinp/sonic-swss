@@ -129,6 +129,7 @@ void IntfMgr::flushLoopbackIntfs()
     auto aliases = tokenize(res, '\n');
     for (string &alias : aliases)
     {
+        SWSS_LOG_NOTICE("Remove loopback device %s", alias.c_str());
         delLoopbackIntf(alias);
     }
 }

@@ -67,6 +67,7 @@ VrfMgr::VrfMgr(DBConnector *cfgDb, DBConnector *appDb, DBConnector *stateDb, con
                 }
                 else
                 {
+                    SWSS_LOG_NOTICE("Remove vrf device %s", vrfName.c_str());
                     cmd.str("");
                     cmd.clear();
                     cmd << IP_CMD << " link del " << vrfName;
