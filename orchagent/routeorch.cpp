@@ -466,6 +466,21 @@ void RouteOrch::doTask(Consumer& consumer)
             vector<string> ipv = tokenize(ips, ',');
             vector<string> alsv = tokenize(aliases, ',');
 
+            /*
+             * To check the validity of nexthop and make sure it works even in
+             * abnormal cases. One case is old format - empty "nexthop",
+             * then set ip to zero for backward compatibility.
+             */
+            if (alsv.size() == 0)
+            {
+                it = consumer.m_toSync.erase(it);
+                continue;
+            }
+            else if (alsv.size() != ipv.size())
+            {
+                ipv.resize(alsv.size(), "0.0.0.0");
+            }
+
             for (auto alias : alsv)
             {
                 if (alias == "eth0" || alias == "lo" || alias == "docker0")
