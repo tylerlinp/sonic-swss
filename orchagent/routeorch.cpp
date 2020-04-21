@@ -478,7 +478,14 @@ void RouteOrch::doTask(Consumer& consumer)
             }
             else if (alsv.size() != ipv.size())
             {
-                ipv.resize(alsv.size(), "0.0.0.0");
+                ipv.resize(alsv.size());
+            }
+            for (auto &ip : ipv)
+            {
+                if (ip.empty())
+                {
+                    ip = ip_prefix.isV4() ? "0.0.0.0" : "::";
+                }
             }
 
             for (auto alias : alsv)
