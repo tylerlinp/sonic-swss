@@ -467,10 +467,12 @@ void RouteOrch::doTask(Consumer& consumer)
             vector<string> alsv = tokenize(aliases, ',');
 
             /*
-             * To check the validity of nexthop and make sure it works even in
-             * abnormal cases. One case is old format - empty "nexthop",
-             * then set ip to zero for backward compatibility.
+             * For backward compatibility, adjust ip string from old format to
+             * new format. Meanwhile it can deal with some abnormal cases.
              */
+
+            /* Resize the ip vector to match ifname vector
+             * as tokenize(",", ',') will miss the last empty segment. */
             if (alsv.size() == 0)
             {
                 it = consumer.m_toSync.erase(it);
@@ -480,6 +482,9 @@ void RouteOrch::doTask(Consumer& consumer)
             {
                 ipv.resize(alsv.size());
             }
+
+            /* Set the empty ip(s) to zero
+             * as IpAddress("") will construst a incorrect ip. */
             for (auto &ip : ipv)
             {
                 if (ip.empty())
