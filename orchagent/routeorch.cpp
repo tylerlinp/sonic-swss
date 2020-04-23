@@ -475,11 +475,13 @@ void RouteOrch::doTask(Consumer& consumer)
              * as tokenize(",", ',') will miss the last empty segment. */
             if (alsv.size() == 0)
             {
+                SWSS_LOG_WARN("Skip the route %s, for it has an empty ifname field.", key.c_str());
                 it = consumer.m_toSync.erase(it);
                 continue;
             }
             else if (alsv.size() != ipv.size())
             {
+                SWSS_LOG_NOTICE("Route %s: resize ipv to match alsv, %zd -> %zd.", key.c_str(), ipv.size(), alsv.size());
                 ipv.resize(alsv.size());
             }
 
@@ -489,6 +491,7 @@ void RouteOrch::doTask(Consumer& consumer)
             {
                 if (ip.empty())
                 {
+                    SWSS_LOG_NOTICE("Route %s: set the empty nexthop ip to zero.", key.c_str());
                     ip = ip_prefix.isV4() ? "0.0.0.0" : "::";
                 }
             }
